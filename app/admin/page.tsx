@@ -1,0 +1,12 @@
+ "use client";
+import { useEffect, useState } from "react";
+import { supabase } from "../../lib/supabase";
+export default function Admin(){
+ const [user,setUser]=useState<any>(null),[products,setProducts]=useState<any[]>([]),[orders,setOrders]=useState<any[]>([]),[msg,setMsg]=useState("");
+ async function load(){if(!supabase)return;const {data:u}=await supabase.auth.getUser();setUser(u.user);const {data:p}=await supabase.from("products").select("*").order("created_at",{ascending:false});setProducts(p||[]);const {data:o}=await supabase.from("orders").select("*").order("created_at",{ascending:false});setOrders(o||[]);}
+ useEffect(()=>{load();},[]);
+ async function approve(id:string){const {error}=await supabase!.from("products").update({status:"approved"}).eq("id",id);setMsg(error?error.message:"পণ্য অনুমোদন হয়েছে।");load();}
+ async function reject(id:string){const {error}=await supabase!.from("products").update({status:"rejected"}).eq("id",id);setMsg(error?error.message:"পণ্য বাতিল হয়েছে।");load();}
+ async function status(id:string,s:string){const {error}=await supabase!.from("orders").update({status:s}).eq("id",id);setMsg(error?error.message:"অর্ডারের অবস্থা আপডেট হয়েছে।");load();}
+ return <main className="dashboard"><a href="/">← হোমপেজ</a><h1>Admin Dashboard</h1><p>প্রজেক্ট মালিকের জন্য ব্যবস্থাপনা প্যানেল।</p>{!user&&<p className="notice">প্রথমে হোমপেজ থেকে লগইন করুন। Admin role ও অনুমতি সেটআপের নির্দেশনা README-তে আছে।</p>}{msg&&<p className="notice">{msg}</p>}<div className="stats"><div><b>{products.length}</b><span>মোট পণ্য</span></div><div><b>{orders.length}</b><span>মোট অর্ডার</span></div><div><b>{orders.filter(o=>o.status==="pending").length}</b><span>নতুন অর্ডার</span></div></div><div className="panel"><h2>পণ্য অনুমোদন</h2>{products.map(p=><div className="adminRow" key={p.id}><span>{p.title} — ৳{p.price} <small>({p.status})</small></span>{p.status==="pending"&&<><button onClick={()=>approve(p.id)}>অনুমোদন</button><button className="danger" onClick={()=>reject(p.id)}>বাতিল</button></>}</div>)}</div><div className="panel"><h2>অর্ডার পরিচালনা</h2>{orders.map(o=><div className="adminRow" key={o.id}><span>{o.customer_name} — ৳{o.total_amount} — {o.phone} <small>({o.status})</small></span><select value={o.status} onChange={e=>status(o.id,e.target.value)}><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="shipped">Shipped</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select></div>)}</div></main>
+}
